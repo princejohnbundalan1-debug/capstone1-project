@@ -6,6 +6,17 @@ from extensions import db
 sales_bp = Blueprint('sales', __name__)
 
 
+@sales_bp.route('/')
+@login_required
+def index():
+    active_branch_id = session.get('active_branch_id')
+    query = Sale.query
+    if active_branch_id:
+        query = query.filter_by(branch_id=active_branch_id)
+    
+    sales = query.order_by(Sale.created_at.desc()).all()
+    return render_template('sales/index.html', sales=sales)
+
 @sales_bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create(): 
