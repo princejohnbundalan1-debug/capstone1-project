@@ -22,28 +22,11 @@ def login():
         user = User.query.filter((User.username == identity) | (User.email == identity)).first()
         
         if user and bcrypt.check_password_hash(user.password_hash, password):
-            if not user.email:
-                flash('No email associated with this account. Please contact admin.', 'danger')
-                return redirect(url_for('auth.login'))
-            
-            # Generate OTP (6 digits)
-            otp_code = '{:06d}'.format(random.randint(0, 999999))
-            otp = OTP(user_id=user.id, otp_code=otp_code, expires_at=datetime.utcnow() + timedelta(minutes=5))
-            db.session.add(otp)
-            db.session.commit()
-            
-            # Send Email
-            try:
-                msg = Message('Your H2Ops Login OTP', recipients=[user.email])
-                msg.body = f"Your OTP for login is: {otp_code}\n\nIt will expire in 5 minutes."
-                mail.send(msg)
-                session['pending_user_id'] = user.id
-                flash('OTP sent to your email.', 'info')
-                return redirect(url_for('auth.verify_otp'))
-            except Exception as e:
-                flash('Failed to send OTP email. Please check configuration. Check terminal for error.', 'danger')
-                print(f"Mail sending error: {e}")
-                return redirect(url_for('auth.login'))
+            # Temporarily bypassing OTP for testing
+            login_user(user)
+            session['active_branch_id'] = user.branch_id
+            flash('Login successful (OTP Bypassed for testing).', 'success')
+            return redirect(url_for('main.dashboard'))
         else:
             flash('Login Unsuccessful. Please check username and password', 'danger')
             
