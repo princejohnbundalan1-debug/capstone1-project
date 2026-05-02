@@ -20,9 +20,16 @@ def create_app():
     load_dotenv()
 
     # Configure the app
-    app.config['SECRET_KEY'] = 'dev-secret-key-h2ops-secure-token-123'
-    # Use MySQL on localhost (XAMPP default: root, no password)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/h2ops_db'
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-h2ops-secure-token-123')
+    
+    # Database Configuration
+    # Render provides 'DATABASE_URL', fallback to local MySQL
+    db_url = os.getenv('DATABASE_URL', 'mysql+pymysql://root:@localhost/h2ops_db')
+    # Fix for SQLAlchemy 1.4+ which requires 'postgresql://' instead of 'postgres://'
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Email configuration
