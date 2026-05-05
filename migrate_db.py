@@ -9,7 +9,7 @@ app = create_app()
 # ==========================================
 # SET YOUR REAL CREDENTIALS HERE
 # ==========================================
-ADMIN_GMAIL = 'princejohnbundalan1@gmail.com'
+ADMIN_GMAIL = 'rreynieljosh@gmail.com'
 ADMIN_PASSWORD = 'password123'
 
 STAFF_GMAIL = 'prbe.bundalan.ui@phinmaed.com'
