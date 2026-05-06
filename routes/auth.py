@@ -13,7 +13,7 @@ def send_async_email(app, msg):
         try:
             mail.send(msg)
         except Exception as e:
-            print(f"Async email sending error: {e}")
+            print(f"Async email sending error: {e}", flush=True)
 
 auth_bp = Blueprint('auth', __name__)
 
