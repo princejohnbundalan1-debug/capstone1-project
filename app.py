@@ -75,6 +75,10 @@ def create_app():
     def index():
         return redirect(url_for('main.dashboard'))
 
+    # Automatically create missing tables (e.g. OTP) when the app starts up
+    with app.app_context():
+        db.create_all()
+
     return app
 
 if __name__ == '__main__':
