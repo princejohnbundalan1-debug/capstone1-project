@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, OTP, PasswordReset, Branch
 from extensions import db, bcrypt, mail
@@ -6,6 +6,14 @@ from flask_mail import Message
 import random
 import uuid
 from datetime import datetime, timedelta
+from threading import Thread
+
+def send_async_email(app, msg):
+    with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception as e:
+            print(f"Async email sending error: {e}")
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -35,7 +43,7 @@ def login():
             try:
                 msg = Message('H2Ops Login OTP', recipients=[user.email])
                 msg.body = f"Your login OTP is: {otp_code}\n\nIt expires in 10 minutes."
-                mail.send(msg)
+                Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
                 
                 # Store pending user and redirect to OTP verification
                 session['pending_user_id'] = user.id
@@ -95,7 +103,7 @@ def forgot_password():
                 msg = Message('H2Ops Password Reset', recipients=[user.email])
                 reset_link = url_for('auth.reset_password', token=token, _external=True)
                 msg.body = f"To reset your password, click the following link:\n{reset_link}\n\nThis link expires in 15 minutes."
-                mail.send(msg)
+                Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
                 flash('A password reset link has been sent to your email.', 'info')
             except Exception as e:
                 flash('Failed to send reset email. Check terminal for error.', 'danger')
