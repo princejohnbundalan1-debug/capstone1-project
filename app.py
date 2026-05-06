@@ -1,4 +1,12 @@
 import os
+import socket
+
+# Force IPv4 to resolve '[Errno 101] Network is unreachable' error on Render's free tier
+old_getaddrinfo = socket.getaddrinfo
+def new_getaddrinfo(*args, **kwargs):
+    responses = old_getaddrinfo(*args, **kwargs)
+    return [response for response in responses if response[0] == socket.AF_INET]
+socket.getaddrinfo = new_getaddrinfo
 from flask import Flask, redirect, url_for, session
 from dotenv import load_dotenv
 from extensions import db, bcrypt, login_manager, mail
