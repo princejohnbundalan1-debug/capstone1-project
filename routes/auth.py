@@ -41,19 +41,22 @@ def login():
             
             # Send Email
             try:
-                msg = Message('H2Ops Login OTP', recipients=[user.email])
-                msg.body = f"Your login OTP is: {otp_code}\n\nIt expires in 10 minutes."
-                Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+                # BYPASS EMAIL FOR TESTING
+                # msg = Message('H2Ops Login OTP', recipients=[user.email])
+                # msg.body = f"Your login OTP is: {otp_code}\n\nIt expires in 10 minutes."
+                # Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+                
+                print(f"--- BYPASS OTP FOR TESTING: {otp_code} ---", flush=True)
                 
                 # Store pending user and redirect to OTP verification
                 session['pending_user_id'] = user.id
-                flash('An OTP has been sent to your email.', 'info')
+                flash(f'An OTP has been generated. (Testing Bypass OTP: {otp_code})', 'info')
                 return redirect(url_for('auth.verify_otp'))
             except Exception as e:
                 # If email fails, rollback the OTP
                 db.session.rollback()
-                flash('Failed to send OTP email. Please check server email configuration.', 'danger')
-                print(f"Mail sending error: {e}")
+                flash('Failed to process OTP.', 'danger')
+                print(f"OTP processing error: {e}")
                 return redirect(url_for('auth.login'))
         else:
             flash('Login Unsuccessful. Please check username and password', 'danger')
