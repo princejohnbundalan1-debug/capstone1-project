@@ -18,26 +18,17 @@ def create_app():
     app = Flask(__name__)
 
     # =========================
-    # ENV VARIABLES (VERCEL SAFE)
+    # DB SECTIONS
     # =========================
     SECRET_KEY = os.getenv("SECRET_KEY")
     DATABASE_URL = os.getenv("DATABASE_URL")
-
     if not SECRET_KEY:
         raise Exception("SECRET_KEY is missing in environment variables")
-
     if not DATABASE_URL:
         raise Exception("DATABASE_URL is missing in environment variables")
-
-    # Clean database URL (fix hidden spaces/newlines from Vercel)
-    DATABASE_URL = DATABASE_URL.strip()
-
-    # =========================
-    # CORE CONFIG
-    # =========================
+    DATABASE_URL = str(DATABASE_URL).strip().replace('"', '').replace("'", "")
     app.config["SECRET_KEY"] = SECRET_KEY
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True,
         "connect_args": {
@@ -64,6 +55,7 @@ def create_app():
     # EXTENSIONS INIT
     # =========================
     db.init_app(app)
+
     bcrypt.init_app(app)
     login_manager.init_app(app)
     mail.init_app(app)
