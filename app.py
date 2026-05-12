@@ -109,6 +109,9 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 with app.app_context():
-    from models import db
-    db.session.execute("SELECT 1")
-    print("DB CONNECTED")
+    from extensions import db
+    try:
+        db.session.execute("SELECT 1")
+        print("DATABASE OK")
+    except Exception as e:
+        print("DATABASE FAILED:", e)
