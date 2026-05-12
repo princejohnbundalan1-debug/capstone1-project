@@ -21,19 +21,26 @@ def create_app():
     # =========================
     # CORE CONFIG
     # =========================
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    DATABASE_URL = os.getenv('DATABASE_URL')
 
-    # =========================
-    # DATABASE (SUPABASE POSTGRES)
-    # =========================
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+    if not SECRET_KEY:
+        raise Exception("SECRET_KEY is missing in Vercel environment variables")
+
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL is missing in Vercel environment variables")
+
+    app.config['SECRET_KEY'] = SECRET_KEY
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         "pool_pre_ping": True,
         "connect_args": {
             "sslmode": "require"
+        }
     }
-}
+
 
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -99,4 +106,4 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         pass
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
