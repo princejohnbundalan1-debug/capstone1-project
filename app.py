@@ -107,11 +107,3 @@ if __name__ == '__main__':
     with app.app_context():
         pass
     app.run(debug=True)
-
-with app.app_context():
-    from extensions import db
-    try:
-        db.session.execute("SELECT 1")
-        print("DATABASE OK")
-    except Exception as e:
-        print("DATABASE FAILED:", e)
