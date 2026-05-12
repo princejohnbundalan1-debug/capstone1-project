@@ -13,63 +13,59 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-        
+
     if request.method == 'POST':
-        identity = request.form.get('username') # Treated as username or email
+        identity = request.form.get('username')
         password = request.form.get('password')
-        
-        # Check both username and email columns
+
         user = User.query.filter(
             (User.username == identity) |
             (User.email == identity)
         ).first()
 
-        if user:
-            # Verify the password using the hash from the database
-            password_match = bcrypt.check_password_hash(user.password_hash, password)
-            print(f"DEBUG: User found: {user.username}, Password match: {password_match}")
-            print(f"DEBUG: Password typed: '{password}'")
-            print(f"DEBUG: Stored hash: '{user.password_hash}'")
-            print(f"DEBUG: Types - Pwd: {type(password)}, Hash: {type(user.password_hash)}")
+        if not user:
+            flash('Invalid username or password', 'danger')
+            return redirect(url_for('auth.login'))
 
-            password_match = bcrypt.check_password_hash(user.password_hash, password)
-            print(f"DEBUG: User found: {user.username}, Password match: {password_match}")
+        # DEBUG (temporary)
+        print("USER FOUND:", user.username)
 
-            if password_match:
-                if not user.email:
-                    flash('No email associated with this account. Please contact admin.', 'danger')
-                    return redirect(url_for('auth.login'))
-                
-                # Generate OTP (6 digits)
-                otp_code = '{:06d}'.format(random.randint(0, 999999))
-                otp = OTP(
-                    user_id=user.id, 
-                    otp_code=otp_code, 
-                    expires_at=datetime.utcnow() + timedelta(minutes=5)
-                )
-                db.session.add(otp)
-                db.session.commit()
-                
-                # Send Email
-                try:
-                    msg = Message('Your Login OTP', recipients=[user.email])
-                    msg.body = f"Your OTP for login is: {otp_code}\n\nIt will expire in 5 minutes."
-                    print(f"--- [TESTING] YOUR OTP CODE IS: {otp_code} ---")
-                    mail.send(msg)
-                    
-                    session['pending_user_id'] = user.id
-                    flash('OTP sent to your email.', 'info')
-                    return redirect(url_for('auth.verify_otp'))
-                except Exception as e:
-                    db.session.rollback() # Good practice to rollback if mail fails
-                    flash('Failed to send OTP email. Please check terminal for error.', 'danger')
-                    print(f"Mail sending error: {e}")
-                    return redirect(url_for('auth.login'))
-            else:
-                flash('Login Unsuccessful. Please check username and password', 'danger')
-        else:
-            flash('Login Unsuccessful. Please check username and password', 'danger')
-            
+        if not user.password_hash:
+            flash('Account has no password set', 'danger')
+            return redirect(url_for('auth.login'))
+
+        if not bcrypt.check_password_hash(user.password_hash, password):
+            flash('Invalid username or password', 'danger')
+            return redirect(url_for('auth.login'))
+
+        # OTP generation
+        otp_code = '{:06d}'.format(random.randint(0, 999999))
+
+        otp = OTP(
+            user_id=user.id,
+            otp_code=otp_code,
+            expires_at=datetime.utcnow() + timedelta(minutes=5)
+        )
+
+        db.session.add(otp)
+        db.session.commit()
+
+        try:
+            msg = Message('Your Login OTP', recipients=[user.email])
+            msg.body = f"Your OTP is: {otp_code}"
+            mail.send(msg)
+
+            session['pending_user_id'] = user.id
+
+            flash('OTP sent to your email.', 'info')
+            return redirect(url_for('auth.verify_otp'))
+
+        except Exception as e:
+            db.session.rollback()
+            print("MAIL ERROR:", e)
+            flash('Email sending failed. Check server logs.', 'danger')
+            return redirect(url_for('auth.login'))
+
     return render_template('login.html')
 
 @auth_bp.route('/verify_otp', methods=['GET', 'POST'])
@@ -125,7 +121,9 @@ def forgot_password():
                 msg = Message('Password Reset Request', recipients=[user.email])
                 reset_link = url_for('auth.reset_password', token=token, _external=True)
                 msg.body = f"To reset your password, click the following link:\n{reset_link}\n\nThis link expires in 15 minutes."
-                mail.send(msg)
+                #mail.send(msg)
+                # mail.send(msg)
+                print("RESET LINK:", reset_link)
                 flash('A password reset link has been sent to your email.', 'info')
             except Exception as e:
                 flash('Failed to send reset email.', 'danger')
