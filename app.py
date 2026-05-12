@@ -107,3 +107,8 @@ if __name__ == '__main__':
     with app.app_context():
         pass
     app.run(debug=True)
+
+with app.app_context():
+    from models import db
+    db.session.execute("SELECT 1")
+    print("DB CONNECTED")

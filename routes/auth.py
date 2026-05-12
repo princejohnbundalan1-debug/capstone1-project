@@ -121,9 +121,7 @@ def forgot_password():
                 msg = Message('Password Reset Request', recipients=[user.email])
                 reset_link = url_for('auth.reset_password', token=token, _external=True)
                 msg.body = f"To reset your password, click the following link:\n{reset_link}\n\nThis link expires in 15 minutes."
-                #mail.send(msg)
-                # mail.send(msg)
-                print("RESET LINK:", reset_link)
+                mail.send(msg)
                 flash('A password reset link has been sent to your email.', 'info')
             except Exception as e:
                 flash('Failed to send reset email.', 'danger')
