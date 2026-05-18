@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, OTP, PasswordReset, Branch
 from extensions import db, bcrypt, mail
@@ -6,14 +6,6 @@ from flask_mail import Message
 import random
 import uuid
 from datetime import datetime, timedelta
-from threading import Thread
-
-def send_async_email(app, msg):
-    with app.app_context():
-        try:
-            mail.send(msg)
-        except Exception as e:
-            print(f"Async email sending error: {e}", flush=True)
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -21,46 +13,59 @@ auth_bp = Blueprint('auth', __name__)
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-        
+
     if request.method == 'POST':
-        identity = request.form.get('username') # Labels are 'username' in HTML, but we treat as identity
+        identity = request.form.get('username')
         password = request.form.get('password')
-        
-        # Check both username and email columns
-        user = User.query.filter((User.username == identity) | (User.email == identity)).first()
-        
-        if user and bcrypt.check_password_hash(user.password_hash, password):
-            # Generate OTP
-            otp_code = str(random.randint(100000, 999999))
-            expires_at = datetime.utcnow() + timedelta(minutes=10)
-            
-            # Save OTP to database
-            otp_entry = OTP(user_id=user.id, otp_code=otp_code, expires_at=expires_at)
-            db.session.add(otp_entry)
-            db.session.commit()
-            
-            # Send Email
-            try:
-                # BYPASS EMAIL FOR TESTING
-                # msg = Message('H2Ops Login OTP', recipients=[user.email])
-                # msg.body = f"Your login OTP is: {otp_code}\n\nIt expires in 10 minutes."
-                # Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
-                
-                print(f"--- BYPASS OTP FOR TESTING: {otp_code} ---", flush=True)
-                
-                # Store pending user and redirect to OTP verification
-                session['pending_user_id'] = user.id
-                flash(f'An OTP has been generated. (Testing Bypass OTP: {otp_code})', 'info')
-                return redirect(url_for('auth.verify_otp'))
-            except Exception as e:
-                # If email fails, rollback the OTP
-                db.session.rollback()
-                flash('Failed to process OTP.', 'danger')
-                print(f"OTP processing error: {e}")
-                return redirect(url_for('auth.login'))
-        else:
-            flash('Login Unsuccessful. Please check username and password', 'danger')
-            
+
+        user = User.query.filter(
+            (User.username == identity) |
+            (User.email == identity)
+        ).first()
+
+        if not user:
+            flash('Invalid username or password', 'danger')
+            return redirect(url_for('auth.login'))
+
+        # DEBUG (temporary)
+        print("USER FOUND:", user.username)
+
+        if not user.password_hash:
+            flash('Account has no password set', 'danger')
+            return redirect(url_for('auth.login'))
+
+        if not bcrypt.check_password_hash(user.password_hash, password):
+            flash('Invalid username or password', 'danger')
+            return redirect(url_for('auth.login'))
+
+        # OTP generation
+        otp_code = '{:06d}'.format(random.randint(0, 999999))
+
+        otp = OTP(
+            user_id=user.id,
+            otp_code=otp_code,
+            expires_at=datetime.utcnow() + timedelta(minutes=5)
+        )
+
+        db.session.add(otp)
+        db.session.commit()
+
+        try:
+            msg = Message('Your Login OTP', recipients=[user.email])
+            msg.body = f"Your OTP is: {otp_code}"
+            mail.send(msg)
+
+            session['pending_user_id'] = user.id
+
+            flash('OTP sent to your email.', 'info')
+            return redirect(url_for('auth.verify_otp'))
+
+        except Exception as e:
+            db.session.rollback()
+            print("MAIL ERROR:", e)
+            flash('Email sending failed. Check server logs.', 'danger')
+            return redirect(url_for('auth.login'))
+
     return render_template('login.html')
 
 @auth_bp.route('/verify_otp', methods=['GET', 'POST'])
@@ -72,7 +77,11 @@ def verify_otp():
         otp_code = request.form.get('otp_code')
         user_id = session.get('pending_user_id')
         
-        valid_otp = OTP.query.filter_by(user_id=user_id, otp_code=otp_code, is_used=False).filter(OTP.expires_at > datetime.utcnow()).first()
+        valid_otp = OTP.query.filter_by(
+            user_id=user_id, 
+            otp_code=otp_code, 
+            is_used=False
+        ).filter(OTP.expires_at > datetime.utcnow()).first()
         
         if valid_otp:
             valid_otp.is_used = True
@@ -80,9 +89,11 @@ def verify_otp():
             
             user = User.query.get(user_id)
             login_user(user)
+            
             # Set active branch for the session
             session['active_branch_id'] = user.branch_id
             session.pop('pending_user_id', None)
+            
             flash('Login successful.', 'success')
             return redirect(url_for('main.dashboard'))
         else:
@@ -95,23 +106,28 @@ def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
+        
         if user:
             token = str(uuid.uuid4())
-            reset = PasswordReset(user_id=user.id, reset_token=token, expires_at=datetime.utcnow() + timedelta(minutes=15))
+            reset = PasswordReset(
+                user_id=user.id, 
+                reset_token=token, 
+                expires_at=datetime.utcnow() + timedelta(minutes=15)
+            )
             db.session.add(reset)
             db.session.commit()
             
-            # Send Email
             try:
-                msg = Message('H2Ops Password Reset', recipients=[user.email])
+                msg = Message('Password Reset Request', recipients=[user.email])
                 reset_link = url_for('auth.reset_password', token=token, _external=True)
                 msg.body = f"To reset your password, click the following link:\n{reset_link}\n\nThis link expires in 15 minutes."
-                Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+                mail.send(msg)
                 flash('A password reset link has been sent to your email.', 'info')
             except Exception as e:
-                flash('Failed to send reset email. Check terminal for error.', 'danger')
+                flash('Failed to send reset email.', 'danger')
                 print(f"Mail sending error: {e}")
         else:
+            # Security best practice: don't reveal if email exists
             flash('If an account with that email exists, a reset link was sent.', 'info')
 
         return redirect(url_for('auth.login'))
@@ -120,7 +136,10 @@ def forgot_password():
 
 @auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    reset = PasswordReset.query.filter_by(reset_token=token, is_used=False).filter(PasswordReset.expires_at > datetime.utcnow()).first()
+    reset = PasswordReset.query.filter_by(
+        reset_token=token, 
+        is_used=False
+    ).filter(PasswordReset.expires_at > datetime.utcnow()).first()
     
     if not reset:
         flash('Invalid or expired reset token.', 'danger')
@@ -163,9 +182,9 @@ def switch_branch(branch_id):
     if branch_id == 0:
         session.pop('active_branch_id', None)
         flash("Switched to Global Overview", "info")
-        return redirect(request.referrer or url_for('main.dashboard'))
+    else:
+        branch = Branch.query.get_or_404(branch_id)
+        session['active_branch_id'] = branch.id
+        flash(f"Switched to {branch.name}", "info")
         
-    branch = Branch.query.get_or_404(branch_id)
-    session['active_branch_id'] = branch.id
-    flash(f"Switched to {branch.name}", "info")
     return redirect(request.referrer or url_for('main.dashboard'))

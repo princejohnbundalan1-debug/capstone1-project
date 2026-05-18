@@ -32,8 +32,8 @@ def dashboard():
     branches = Branch.query.all() if current_user.role == 'admin' else []
     active_branch = Branch.query.get(active_branch_id) if active_branch_id else None
     
-    return render_template('dashboard.html', 
-                           total_sales_amount=total_sales_amount, 
+    return render_template('dashboard.html',
+                           total_sales_amount=total_sales_amount,
                            total_orders=total_orders,
                            low_stock_count=len(low_stock_products),
                            low_stock_products=low_stock_products,
