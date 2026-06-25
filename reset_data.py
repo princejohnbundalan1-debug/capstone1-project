@@ -7,7 +7,7 @@ app = create_app()
 with app.app_context():
     print("Resetting database records...")
     
-    # Check if we should wipe everything or keep products/users/customers
+    # Check if we should wipe everything or keep products/users/customers.
     # We will keep products, users, and customers, but remove all sales and inventory logs.
     
     # 1. Delete all Sale Items and Sales

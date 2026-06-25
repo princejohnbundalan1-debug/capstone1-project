@@ -8,3 +8,4 @@ with app.app_context():
     print("Creating all tables...")
     db.create_all()
     print("Database reset complete.")
+    

@@ -41,7 +41,7 @@ def forecast_next_days(historical_sales, days_to_predict=7):
     if not historical_sales:
         return [0] * days_to_predict
         
-    # X values: 0, 1, 2, ...
+    # X values: 0, 1, 2, ....
     x = list(range(len(historical_sales)))
     y = historical_sales
     
