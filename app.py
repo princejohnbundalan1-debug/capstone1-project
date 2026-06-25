@@ -28,7 +28,9 @@ def create_app():
         raise Exception("DATABASE_URL is missing in environment variables")
     DATABASE_URL = str(DATABASE_URL).strip().replace('"', '').replace("'", "")
     app.config["SECRET_KEY"] = SECRET_KEY
+
     app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_pre_ping": True,
         "connect_args": {
