@@ -60,7 +60,7 @@ with app.app_context():
     for b in branches:
         product_name = f'Mineral Water - {b.name}'
         if not Product.query.filter_by(name=product_name, branch_id=b.id).first():
-            p1 = Product(name=product_name, type='Mineral', price=40.0, current_stock=200, branch_id=b.id)
+            p1 = Product(name=product_name, type='Mineral', price=40.0, current_stock=250, branch_id=b.id)
             db.session.add(p1)
             
     db.session.commit()
